@@ -429,11 +429,16 @@ footer { padding: 10px 0 0; text-align: center; }
 /* ══════════════════════════════════════════════
    API CONFIG
 ══════════════════════════════════════════════ */
+// corsproxy.io relays requests with correct browser headers — free, no key needed.
+// If it ever goes down, swap PROXY for another: 'https://api.allorigins.win/raw?url='
+const PROXY = 'https://corsproxy.io/?';
+const px = (url) => PROXY + encodeURIComponent(url);
+
 const API = {
-  lb:       (w, s, l) => `https://gamma-api.polymarket.com/leaderboard?window=${w}&sort=${s}&limit=${l}`,
-  profile:  (a)       => `https://gamma-api.polymarket.com/profiles/${a}`,
-  positions:(a)       => `https://gamma-api.polymarket.com/positions?user=${a}&sizeThreshold=0.01&limit=30`,
-  activity: (a)       => `https://gamma-api.polymarket.com/activity?user=${a}&limit=30`,
+  lb:       (w, s, l) => px(`https://gamma-api.polymarket.com/leaderboard?window=${w}&sort=${s}&limit=${l}`),
+  profile:  (a)       => px(`https://gamma-api.polymarket.com/profiles/${a}`),
+  positions:(a)       => px(`https://gamma-api.polymarket.com/positions?user=${a}&sizeThreshold=0.01&limit=30`),
+  activity: (a)       => px(`https://gamma-api.polymarket.com/activity?user=${a}&limit=30`),
   TTL: 3 * 60 * 1000,
 };
 
@@ -783,7 +788,7 @@ async function loadLB() {
   if (!r.ok || !r.data?.length) {
     if (!r.ok) {
       $('lb-err-msg').textContent = r.error?.includes('Failed to fetch')
-        ? 'Network error — ensure you\'re using Safari on iPhone for CORS to work correctly.'
+        ? 'Network error — the CORS proxy may be temporarily unavailable. Try again in a moment.'
         : `API error: ${r.error}`;
       showState('error');
     } else {
