@@ -206,6 +206,20 @@ footer{padding:10px 0 0;text-align:center}
         <button class="pill" data-v="50">50</button>
       </div>
     </div>
+    <div class="fg">
+      <span class="fl">Cat.</span>
+      <div class="pg" id="fcat">
+        <button class="pill on" data-v="OVERALL">All</button>
+        <button class="pill" data-v="POLITICS">Politics</button>
+        <button class="pill" data-v="CRYPTO">Crypto</button>
+        <button class="pill" data-v="SPORTS">Sports</button>
+        <button class="pill" data-v="ECONOMICS">Eco</button>
+        <button class="pill" data-v="FINANCE">Finance</button>
+        <button class="pill" data-v="TECH">Tech</button>
+        <button class="pill" data-v="CULTURE">Culture</button>
+        <button class="pill" data-v="WEATHER">Weather</button>
+      </div>
+    </div>
   </div>
 
   <div id="mw-card" class="card hidden">
@@ -285,8 +299,10 @@ const px = url => `${WORKER_URL}?url=${encodeURIComponent(url)}`;
 const PERIOD = { day:'DAY', week:'WEEK', month:'MONTH', all:'ALL' };
 const SORT   = { profit:'PNL', volume:'VOL' };
 
+const CAT = ['OVERALL','POLITICS','CRYPTO','SPORTS','ECONOMICS','FINANCE','TECH','CULTURE','WEATHER'];
+
 const API = {
-  lb:       (w,s,l) => px(`https://data-api.polymarket.com/v1/leaderboard?timePeriod=${PERIOD[w]||'WEEK'}&orderBy=${SORT[s]||'PNL'}&limit=${l}`),
+  lb: (w,s,l,c) => px(`https://data-api.polymarket.com/v1/leaderboard?timePeriod=${PERIOD[w]||'WEEK'}&orderBy=${SORT[s]||'PNL'}&limit=${l}${c&&c!='OVERALL'?'&category='+c:''}`),
   positions:(a)     => px(`https://data-api.polymarket.com/positions?user=${a}&sizeThreshold=0.01&limit=30`),
   activity: (a)     => px(`https://data-api.polymarket.com/activity?user=${a}&limit=30`),
   profile:  (a)     => px(`https://gamma-api.polymarket.com/profiles/${a}`),
@@ -348,8 +364,8 @@ const DS = (() => {
     };
   }
 
-  async function fetchLB(w,s,l) {
-    const r = await get(API.lb(w,s,l));
+  async function fetchLB(w,s,l,c) {
+    const r = await get(API.lb(w,s,l,c));
     if (!r.ok) return r;
     const raw = Array.isArray(r.data) ? r.data : (r.data?.data || r.data?.leaderboard || []);
     return { ok:true, data:raw.map(norm_trader) };
@@ -466,7 +482,7 @@ const hide = id => $(id).classList.add('hidden');
 // ════════════════════════════════════════════════════
 // STATE
 // ════════════════════════════════════════════════════
-let state = { period:'week', sort:'profit', limit:10, traders:[], loading:false };
+let state = { period:'week', sort:'profit', limit:10, category:'OVERALL', traders:[], loading:false };
 
 // ════════════════════════════════════════════════════
 // RENDER LEADERBOARD
@@ -604,7 +620,7 @@ async function loadLB() {
   $('refresh-btn').classList.add('spinning');
   hide('mw-card');
 
-  const r = await DS.fetchLB(state.period, state.sort, state.limit);
+  const r = await DS.fetchLB(state.period, state.sort, state.limit, state.category);
   state.loading = false;
   $('refresh-btn').classList.remove('spinning');
 
@@ -656,6 +672,7 @@ function bindPills(id, key) {
 bindPills('fp','period');
 bindPills('fs','sort');
 bindPills('fl2','limit');
+bindPills('fcat','category');
 
 $('refresh-btn').addEventListener('click', ()=>{ DS.clear(); loadLB(); });
 $('retry-btn').addEventListener('click',   ()=>{ DS.clear(); loadLB(); });
