@@ -158,6 +158,33 @@ main{max-width:600px;margin:0 auto;padding:14px 13px calc(var(--safe-bottom) + 2
 .t-mkt{font-size:12px;font-weight:600;line-height:1.4;margin-top:5px;color:var(--muted)}
 .m-load{display:flex;flex-direction:column;align-items:center;gap:12px;padding:60px 20px;color:var(--muted);font-size:13px}
 .api-note{font-size:11px;color:var(--dim);background:var(--elevated);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 13px;margin-bottom:11px;line-height:1.5}
+/* ── GAINS HISTORY ── */
+.gains-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.gain-row{background:var(--elevated);border:1px solid var(--border);border-radius:var(--r-md);padding:11px 13px;display:flex;align-items:center;gap:10px}
+.gain-icon{font-size:18px;flex-shrink:0}
+.gain-info{flex:1;min-width:0}
+.gain-title{font-size:12px;font-weight:600;color:var(--text);line-height:1.4;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gain-meta{display:flex;align-items:center;gap:6px}
+.gain-outcome{font-family:var(--font-m);font-size:10px;padding:1px 6px;border-radius:4px;font-weight:500}
+.gain-date{font-family:var(--font-m);font-size:10px;color:var(--dim)}
+.gain-amount{font-family:var(--font-m);font-size:15px;font-weight:500;flex-shrink:0;text-align:right}
+
+/* ── OPEN POSITIONS REVAMP ── */
+.pos-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.pos-card{background:var(--elevated);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 13px}
+.pos-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+.pos-title{font-size:12px;font-weight:600;color:var(--text);line-height:1.4;flex:1}
+.pos-outcome{font-family:var(--font-m);font-size:10px;padding:2px 7px;border-radius:5px;font-weight:600;flex-shrink:0}
+.pos-bars{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.pos-stat{display:flex;flex-direction:column;gap:2px}
+.pos-stat-l{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--dim)}
+.pos-stat-v{font-family:var(--font-m);font-size:12px;font-weight:500}
+.pos-potential{display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.pos-pot-l{font-size:10px;color:var(--dim)}
+.pos-pot-v{font-family:var(--font-m);font-size:13px;font-weight:600}
+.pos-pot-bar-bg{height:3px;background:var(--border-s);border-radius:10px;margin-top:4px;overflow:hidden}
+.pos-pot-bar-fill{height:100%;border-radius:10px}
+
 footer{padding:10px 0 0;text-align:center}
 .disc{font-size:10px;color:var(--dim);line-height:1.6}
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border-s);border-radius:4px}
@@ -537,9 +564,58 @@ function renderMW(markets) {
 function renderTrader(trader, profile, positions, trades) {
   const name = profile?.name || trader.name || trunc(trader.address);
   $('m-title').textContent = name;
-  const score = AN.score(positions,trades);
-  const bias  = AN.bias(trades);
-  const synth = AN.synth(positions,trades);
+
+  // ── Stats
+  const openPnl   = positions.reduce((a,p)=>a+p.pnl,0);
+  const openValue = positions.reduce((a,p)=>a+p.value,0);
+
+  // ── Recent trades: split BUY (active bets) vs SELL (closed/exits)
+  const recentBuys  = trades.filter(t=>t.side==='BUY').slice(0,6);
+  const recentSells = trades.filter(t=>t.side==='SELL').slice(0,6);
+
+  // ── Open position card
+  function posCard(p) {
+    const isYes  = p.outcome?.toUpperCase()==='YES';
+    const inv    = p.value - p.pnl;
+    const pct    = inv>0 ? (p.pnl/inv*100) : 0;
+    const isPos  = p.pnl>=0;
+    const bar    = Math.min(Math.abs(pct),100);
+    return `<div class="pos-card">
+      <div class="pos-header">
+        <div class="pos-title">${esc(p.title)}</div>
+        <span class="pos-outcome ${isYes?'pt-yes':'pt-no'}">${esc(p.outcome||'?')}</span>
+      </div>
+      <div class="pos-bars">
+        <div class="pos-stat"><span class="pos-stat-l">At stake</span><span class="pos-stat-v">${fmt(p.value)}</span></div>
+        <div class="pos-stat"><span class="pos-stat-l">Unrealized P&L</span><span class="pos-stat-v ${isPos?'pos':'neg'}">${sign(p.pnl)}${fmt(p.pnl)}</span></div>
+        <div class="pos-stat"><span class="pos-stat-l">Change</span><span class="pos-stat-v ${isPos?'pos':'neg'}">${sign(pct)}${pct.toFixed(0)}%</span></div>
+      </div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div style="flex:1;margin-right:12px">
+          <div style="font-size:10px;color:var(--dim);margin-bottom:3px">${isPos?'📈 Currently winning':'📉 Currently losing'}</div>
+          <div style="height:4px;background:var(--border-s);border-radius:10px;overflow:hidden"><div style="height:100%;width:${bar}%;background:${isPos?'var(--accent)':'var(--red)'};border-radius:10px"></div></div>
+        </div>
+        <span style="font-family:var(--font-m);font-size:14px;font-weight:600;color:${isPos?'var(--accent)':'var(--red)'}">${sign(p.pnl)}${fmt(p.pnl)}</span>
+      </div>
+    </div>`;
+  }
+
+  // ── Trade row (buy or sell)
+  function tradeRow(t, showSide) {
+    const isBuy = t.side==='BUY';
+    const pnlHint = t.cashPnl != null
+      ? `<span style="font-family:var(--font-m);font-size:11px;color:${t.cashPnl>=0?'var(--accent)':'var(--red)'};margin-left:auto">${sign(t.cashPnl)}${fmt(t.cashPnl)}</span>`
+      : '';
+    return `<div class="t-row">
+      <div class="t-meta">
+        <span class="pt ${isBuy?'pt-buy':'pt-sel'}">${t.side}</span>
+        <span class="pt pt-v">${fmt(t.amount)}</span>
+        ${t.price?`<span class="pt pt-v">@ ${(t.price*100).toFixed(0)}¢</span>`:''}
+        <span class="t-time">${ago(t.ts)}</span>
+      </div>
+      <div class="t-mkt">${esc(t.title)}</div>
+    </div>`;
+  }
 
   $('m-body').innerHTML = `
     <div class="m-profile">
@@ -553,50 +629,44 @@ function renderTrader(trader, profile, positions, trades) {
         </div>
       </div>
     </div>
+
     <div class="wallet-block">
       <span class="w-addr">${esc(trader.address)}</span>
       <button class="copy-btn" data-copy="${esc(trader.address)}">Copy</button>
     </div>
+
+    <!-- KPIs -->
     <div class="srow">
-      <div class="sbox"><div class="sl">PnL</div><div class="sv sm ${pc(trader.pnl)}">${sign(trader.pnl)}${fmt(trader.pnl)}</div></div>
-      <div class="sbox"><div class="sl">Volume</div><div class="sv sm">${fmt(trader.volume)}</div></div>
+      <div class="sbox"><div class="sl">Realized PnL</div><div class="sv sm ${pc(trader.pnl)}">${sign(trader.pnl)}${fmt(trader.pnl)}</div></div>
+      <div class="sbox"><div class="sl">Total Volume</div><div class="sv sm">${fmt(trader.volume)}</div></div>
     </div>
     <div class="srow c3">
-      <div class="sbox"><div class="sl">Positions</div><div class="sv sm">${positions.length}</div></div>
-      <div class="sbox"><div class="sl">Buy %</div><div class="sv sm ${bias.bias==='buy'?'pos':''}">${bias.bp||'—'}%</div></div>
-      <div class="sbox"><div class="sl">Sell %</div><div class="sv sm ${bias.bias==='sell'?'neg':''}">${bias.sp||'—'}%</div></div>
+      <div class="sbox"><div class="sl">Open bets</div><div class="sv sm">${positions.length}</div></div>
+      <div class="sbox"><div class="sl">At stake</div><div class="sv sm">${fmt(openValue)}</div></div>
+      <div class="sbox"><div class="sl">Unrealized</div><div class="sv sm ${openPnl>=0?'pos':'neg'}">${sign(openPnl)}${fmt(openPnl)}</div></div>
     </div>
-    <div class="conv-wrap">
-      <div class="conv-lbl"><span>Activity score (descriptive)</span><span>${score}/100</span></div>
-      <div class="conv-bg"><div class="conv-fill" style="width:${score}%"></div></div>
-    </div>
-    <div class="synth-block">
-      <div class="synth-ttl">🔍 What are they doing?</div>
-      ${synth.map(b=>`<div class="synth-item">${esc(b)}</div>`).join('')}
-    </div>
-    <div class="sub-ttl">Open Positions (${positions.length})</div>
-    ${positions.length?`<div class="p-list">${positions.slice(0,10).map(p=>`
-      <div class="p-row">
-        <div class="p-mkt">${esc(p.title)}</div>
-        <div class="p-meta">
-          <span class="pt ${p.outcome?.toUpperCase()==='YES'?'pt-yes':'pt-no'}">${esc(p.outcome||'—')}</span>
-          <span class="pt pt-v">${fmt(p.value)}</span>
-          ${p.pnl!==0?`<span class="${p.pnl>=0?'pt-pnl-p':'pt-pnl-n'}">${sign(p.pnl)}${fmt(p.pnl)}</span>`:''}
-        </div>
-      </div>`).join('')}</div>`
-    :'<p style="font-size:12px;color:var(--dim);margin-bottom:12px;">No open positions available.</p>'}
-    <div class="sub-ttl">Recent Trades</div>
-    ${trades.length?`<div class="t-list">${trades.slice(0,8).map(t=>`
-      <div class="t-row">
-        <div class="t-meta">
-          <span class="pt ${t.side==='BUY'?'pt-buy':'pt-sel'}">${t.side}</span>
-          <span class="pt pt-v">${fmt(t.amount)}</span>
-          ${t.price?`<span class="pt pt-v">@ ${(t.price*100).toFixed(0)}¢</span>`:''}
-          <span class="t-time">${ago(t.ts)}</span>
-        </div>
-        <div class="t-mkt">${esc(t.title)}</div>
-      </div>`).join('')}</div>`
-    :'<p style="font-size:12px;color:var(--dim);margin-bottom:12px;">No recent trades available.</p>'}
+
+    <!-- OPEN BETS -->
+    <div class="sub-ttl">🎯 Open bets (${positions.length})</div>
+    ${positions.length
+      ? `<div class="pos-list">${positions.slice(0,10).map(posCard).join('')}</div>`
+      : `<div class="t-empty">No open positions available.</div>`
+    }
+
+    <!-- RECENT BUYS -->
+    <div class="sub-ttl">🟢 Recent buys</div>
+    ${recentBuys.length
+      ? `<div class="t-list">${recentBuys.map(t=>tradeRow(t,true)).join('')}</div>`
+      : `<div class="t-empty">No recent buys.</div>`
+    }
+
+    <!-- RECENT SELLS / EXITS -->
+    <div class="sub-ttl">🔴 Recent sells & exits</div>
+    ${recentSells.length
+      ? `<div class="t-list">${recentSells.map(t=>tradeRow(t,true)).join('')}</div>`
+      : `<div class="t-empty">No recent sells.</div>`
+    }
+
     <div class="api-note">⚠️ Observation only. Data may be incomplete or delayed. Not financial advice.</div>
   `;
 
